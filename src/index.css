@@ -1,0 +1,13 @@
+@import "tailwindcss";
+
+@theme {
+  --color-wood-dark: #3a1a0a;
+  --color-wood-darker: #2c1810;
+  --color-gold: #d4a017;
+  --color-gold-light: #ffd700;
+  --color-gold-dark: #b8860b;
+  --color-cell-bg: #ffffff;
+  --color-cell-bg-alt: #f0f0f0;
+  --color-cyan: #00e5ff;
+  --color-jackpot: #111111;
+}

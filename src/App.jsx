@@ -25,11 +25,9 @@ function getCellSize() {
 }
 
 const JACKPOT_LETTERS = ['K', 'B', 'C', 'G', 'A', 'M', 'E']
-const ROWS = 3
 const COLS = 7
-const STRIP_LEN = 60
-const TARGET_POS = 40
-const SPIN_DURATION = 5.5
+const CYLINDER_N = 14
+const SPIN_DURATION = 2.5
 const STAGGER = 0.12
 
 const ALL_SYMBOLS = [
@@ -38,34 +36,27 @@ const ALL_SYMBOLS = [
   'K','B','C','G','A','M','E',
 ]
 
-const INITIAL_GRID = [
-  ['cherry','lemon','orange','star','bell','seven','diamond'],
-  ['grape','bell','cherry','watermelon','orange','bar','seven'],
-  ['seven','lemon','diamond','cherry','star','grape','watermelon'],
-]
-
-function buildStrip(top, mid, bot) {
-  const strip = []
-  for (let i = 0; i < STRIP_LEN; i++) {
-    if (i === TARGET_POS) strip.push(top)
-    else if (i === TARGET_POS + 1) strip.push(mid)
-    else if (i === TARGET_POS + 2) strip.push(bot)
-    else strip.push(ALL_SYMBOLS[Math.floor(Math.random() * ALL_SYMBOLS.length)])
+function buildCylinderSegments(top, mid, bot) {
+  const segs = []
+  for (let i = 0; i < CYLINDER_N; i++) {
+    if (i === 0) segs.push(top)
+    else if (i === 1) segs.push(mid)
+    else if (i === 2) segs.push(bot)
+    else segs.push(ALL_SYMBOLS[Math.floor(Math.random() * ALL_SYMBOLS.length)])
   }
-  return strip
+  return segs
 }
 
 export default function App() {
-  const [grid, setGrid] = useState(INITIAL_GRID.map(r => [...r]))
-  const [showStrips, setShowStrips] = useState(false)
   const [spinning, setSpinning] = useState(false)
   const [winData, setWinData] = useState(null)
   const [freeSpins, setFreeSpins] = useState(0)
   const [miniGameActive, setMiniGameActive] = useState(false)
   const [winningCells, setWinningCells] = useState(new Set())
   const [cellSize, setCellSize] = useState(getCellSize)
+  const [spinKey, setSpinKey] = useState(0)
   const [strips, setStrips] = useState(() =>
-    Array.from({ length: COLS }, (_, c) => buildStrip('cherry', 'lemon', 'orange'))
+    Array.from({ length: COLS }, (_, c) => buildCylinderSegments('cherry', 'lemon', 'orange'))
   )
 
   const spinLock = useRef(false)
@@ -94,14 +85,11 @@ export default function App() {
       const res = await fetch('/api/spin')
       const data = await res.json()
 
-      // Build strips with target symbols at position 40, 41, 42
-      const newStrips = Array.from({ length: COLS }, (_, c) =>
-        buildStrip(data.grid[0][c], data.grid[1][c], data.grid[2][c])
+      // Build cylinder segments with result symbols at positions 0, 1, 2
+      const newSegments = Array.from({ length: COLS }, (_, c) =>
+        buildCylinderSegments(data.grid[0][c], data.grid[1][c], data.grid[2][c])
       )
-      setStrips(newStrips)
-
-      // Set grid data immediately (hidden under strips while they animate)
-      setGrid(data.grid.map(r => [...r]))
+      setStrips(newSegments)
       setWinData(data)
 
       const cells = new Set()
@@ -120,30 +108,36 @@ export default function App() {
         pendingMiniGame.current = true
       }
 
-      setShowStrips(true)
+      setSpinKey(k => k + 1)
     } catch {
       setSpinning(false)
       spinLock.current = false
     }
   }, [])
 
-  // Run GSAP animation when strips are shown
+  // Set initial cylinder rotation so middle segment (1) is front-facing
   useEffect(() => {
-    if (!showStrips) return
+    const stepAngle = 360 / CYLINDER_N
+    stripRefs.current.forEach(ref => {
+      if (ref) gsap.set(ref, { rotationX: -stepAngle })
+    })
+  }, [cellSize])
 
-    const targetY = -(TARGET_POS * cellSize.h)
+  // Run GSAP cylinder rotation on each spin
+  useEffect(() => {
+    if (spinKey === 0) return
 
     if (tlRef.current) tlRef.current.kill()
 
-    // Randomize starting positions
+    // Set random starting rotation so result isn't instantly visible
     stripRefs.current.forEach((ref) => {
       if (!ref) return
-      gsap.set(ref, { y: Math.random() * -cellSize.h })
+      const startAngle = Math.random() * 360
+      gsap.set(ref, { rotationX: startAngle })
     })
 
     const tl = gsap.timeline({
       onComplete: () => {
-        setShowStrips(false)
         setSpinning(false)
         spinLock.current = false
 
@@ -153,10 +147,13 @@ export default function App() {
       },
     })
 
+    const stepAngle = 360 / CYLINDER_N
     stripRefs.current.forEach((ref, i) => {
       if (!ref) return
+      const fullSpins = 5 + Math.floor(Math.random() * 4)
+      const totalRotation = (fullSpins + 1) * 360 - stepAngle
       tl.to(ref, {
-        y: targetY,
+        rotationX: totalRotation,
         duration: SPIN_DURATION,
         ease: 'power4.out',
       }, i * STAGGER)
@@ -167,7 +164,7 @@ export default function App() {
     return () => {
       if (tlRef.current) tlRef.current.kill()
     }
-  }, [showStrips, cellSize])
+  }, [spinKey, cellSize])
 
   const jackpotLine = winData?.winningLines?.find(l => l.name === 'Jackpot')
   const payableLines = winData?.winningLines?.filter(l => l.multiplier > 0)
@@ -178,83 +175,70 @@ export default function App() {
         {/* Screen */}
         <div className="bg-gradient-to-b from-[#0a0a1a] to-[#111128] border-2 sm:border-4 border-gray-500 rounded-2xl p-2 sm:p-3 md:p-4 lg:p-5 mb-3 sm:mb-5 shadow-[inset_0_0_40px_rgba(0,0,0,0.9)] relative"
           style={{ clipPath: 'inset(0 round 16px)' }}>
-          {/* GSAP Strips with 3D perspective (shown during spin, then hide to reveal grid) */}
-          {showStrips ? (
-            <div className="grid grid-cols-7 gap-x-[3px] sm:gap-x-[4px] md:gap-x-[5px] lg:gap-x-[6px]">
-              {strips.map((strip, c) => (
-                <div
-                  key={`s-${c}`}
-                  className="relative overflow-hidden"
-                  style={{ height: cellSize.h * 3 }}
-                >
-                  {/* 3D cylinder illusion gradient overlay */}
-                  <div className="absolute inset-0 z-10 pointer-events-none"
-                    style={{
-                      background: 'linear-gradient(to bottom, rgba(0,0,0,0.85) 0%, transparent 25%, transparent 75%, rgba(0,0,0,0.85) 100%)',
-                    }}
-                  />
-                  <div
-                    ref={el => { stripRefs.current[c] = el }}
-                    className="will-change-transform"
-                    style={{ transformStyle: 'preserve-3d' }}
-                  >
-                    {strip.map((symbol, i) => {
-                      const isJackpot = JACKPOT_LETTERS.includes(symbol)
-                      const tiltAngles = [12, 0, -12]
-                      return (
-                        <div
-                          key={i}
-                          className="flex items-center justify-center bg-gradient-to-br from-cell-bg to-cell-bg-alt border-b border-gray-300"
-                          style={{
-                            width: '100%',
-                            height: cellSize.h,
-                            fontSize: `${Math.round(cellSize.w * 0.35)}px`,
-                            color: isJackpot ? '#111' : '#444',
-                            fontWeight: isJackpot ? 'bold' : 'normal',
-                            textShadow: isJackpot ? '0 0 6px rgba(0,0,0,0.2)' : 'none',
-                            transform: `rotateX(${tiltAngles[i % 3]}deg)`,
-                          }}
-                        >
-                          {renderSymbol(symbol)}
-                        </div>
-                      )
-                    })}
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="relative">
-              {/* 3D cylinder illusion gradient overlay */}
-              <div className="absolute inset-0 z-10 pointer-events-none"
-                style={{
-                  background: 'linear-gradient(to bottom, rgba(0,0,0,0.85) 0%, transparent 25%, transparent 75%, rgba(0,0,0,0.85) 100%)',
-                }}
-              />
-              <div className="grid grid-cols-7 gap-x-[3px] sm:gap-x-[4px] md:gap-x-[5px] lg:gap-x-[6px]">
-              {grid.flat().map((symbol, i) => {
-                const r = Math.floor(i / COLS)
-                const c = i % COLS
-                const isJackpot = JACKPOT_LETTERS.includes(symbol)
-                const isWinner = winningCells.has(`${r}-${c}`)
+          {/* 3D CSS Cylinder Reels (permanent display) */}
+          <div className="relative">
+            <div className="absolute inset-0 z-10 pointer-events-none"
+              style={{
+                background: 'linear-gradient(to bottom, rgba(0,0,0,0.85) 0%, transparent 25%, transparent 75%, rgba(0,0,0,0.85) 100%)',
+              }}
+            />
+            <div className="grid grid-cols-7 gap-x-[3px] sm:gap-x-[4px] md:gap-x-[5px] lg:gap-x-[6px]" style={{ perspective: '1200px' }}>
+              {strips.map((segments, c) => {
+                const radius = cellSize.h * 1.8
+                const diameter = radius * 2
+                const stepAngle = 360 / CYLINDER_N
+                const segHeight = (2 * Math.PI * radius) / CYLINDER_N
                 return (
-                  <div
-                    key={`g-${r}-${c}`}
-                    className={`flex items-center justify-center select-none transition-all duration-300
-                      bg-gradient-to-br from-cell-bg to-cell-bg-alt border-2 border-gray-300
-                      shadow-[inset_0_2px_4px_rgba(0,0,0,0.06)]
-                      ${isJackpot ? 'text-jackpot font-bold' : 'text-gray-600'}
-                      ${isWinner ? 'border-gold-light shadow-[0_0_15px_#ffd700,0_0_30px_rgba(255,215,0,0.4)] animate-[pulseGlow_0.8s_ease-in-out_infinite_alternate]' : ''}
-                    `}
-                    style={{ width: '100%', height: cellSize.h, fontSize: `${Math.round(cellSize.w * 0.35)}px` }}
-                  >
-                    {renderSymbol(symbol)}
+                  <div key={`s-${c}`} className="relative overflow-hidden" style={{ height: cellSize.h * 3 }}>
+                    <div ref={el => { stripRefs.current[c] = el }}
+                      style={{
+                        position: 'absolute',
+                        top: '50%',
+                        left: '50%',
+                        width: diameter,
+                        height: diameter,
+                        marginLeft: -radius,
+                        marginTop: -radius,
+                        transformStyle: 'preserve-3d',
+                      }}
+                    >
+                      {segments.map((symbol, i) => {
+                        const isJackpot = JACKPOT_LETTERS.includes(symbol)
+                        const isWinner = !spinning && winningCells.has(`${i}-${c}`)
+                        return (
+                          <div key={i}
+                            style={{
+                              position: 'absolute',
+                              top: '50%',
+                              left: 0,
+                              right: 0,
+                              height: segHeight,
+                              marginTop: -segHeight / 2,
+                              transform: `rotateX(${stepAngle * i}deg) translateZ(${radius}px)`,
+                              backfaceVisibility: 'hidden',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              background: i % 2 === 0 ? 'rgba(255,255,255,0.9)' : 'rgba(240,240,245,0.95)',
+                              borderTop: isWinner ? '2px solid #ffd700' : '1.5px solid rgba(212,160,23,0.6)',
+                              borderBottom: isWinner ? '2px solid #ffd700' : '1.5px solid rgba(212,160,23,0.6)',
+                              boxShadow: isWinner ? '0 0 15px #ffd700, 0 0 30px rgba(255,215,0,0.4)' : 'none',
+                              fontSize: `${Math.round(cellSize.w * 0.35)}px`,
+                              color: isJackpot ? '#111' : '#444',
+                              fontWeight: isJackpot ? 'bold' : 'normal',
+                              animation: isWinner ? 'pulseGlow 0.8s ease-in-out infinite alternate' : 'none',
+                            }}
+                          >
+                            {renderSymbol(symbol)}
+                          </div>
+                        )
+                      })}
+                    </div>
                   </div>
                 )
               })}
             </div>
-            </div>
-          )}
+          </div>
         </div>
 
         {/* Info panel */}
@@ -272,8 +256,10 @@ export default function App() {
             ) : payableLines?.length > 0 ? (
               <>
                 <div className="text-xs sm:text-sm md:text-base">{'\u{1F3C6}'} WINNER! Total Multiplier: x{winData.totalMultiplier}</div>
-                <div className="text-[10px] sm:text-xs md:text-sm text-gray-300 mt-1 leading-tight">
-                  {payableLines.map(l => `${l.name}: ${renderSymbol(l.symbol)} x${l.multiplier}`).join(' \u00B7 ')}
+                <div className="flex flex-col gap-0.5 text-[10px] sm:text-xs md:text-sm text-gray-300 mt-1">
+                  {payableLines.map(l => (
+                    <div key={l.name}>{l.name}: {renderSymbol(l.symbol)} x{l.multiplier}</div>
+                  ))}
                 </div>
               </>
             ) : winData && !winData.isWinner ? null : (

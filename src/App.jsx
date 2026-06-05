@@ -2,17 +2,17 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import gsap from 'gsap'
 
 const ASSET_MAP = {
-  cherry: '\u{1F352}',
-  lemon: '\u{1F34B}',
-  orange: '\u{1F34A}',
-  plum: '\u{1FAD0}',
-  bell: '\u{1F514}',
-  seven: '7\uFE0F\u20E3',
-  bar: '\u{1F4B5}',
-  star: '\u{2B50}',
-  grape: '\u{1F347}',
-  watermelon: '\u{1F349}',
-  diamond: '\u{1F48E}',
+  cherry: '/images/emoji/cherry.png',
+  lemon: '/images/emoji/lemon.png',
+  orange: '/images/emoji/orange.png',
+  plum: '/images/emoji/plum.png',
+  bell: '/images/emoji/bell.png',
+  seven: '/images/emoji/seven.png',
+  bar: '/images/emoji/bar.png',
+  star: '/images/emoji/star.png',
+  grape: '/images/emoji/grape.png',
+  watermelon: '/images/emoji/watermelon.png',
+  diamond: '/images/emoji/diamond.png',
   K: 'K', B: 'B', C: 'C', G: 'G', A: 'A', M: 'M', E: 'E',
 }
 
@@ -64,7 +64,8 @@ export default function App() {
   const tlRef = useRef(null)
   const pendingMiniGame = useRef(false)
 
-  const renderSymbol = (symbol) => ASSET_MAP[symbol] ?? symbol
+  const getAsset = (symbol) => ASSET_MAP[symbol] ?? symbol
+  const isImageAsset = (asset) => typeof asset === 'string' && asset.startsWith('/')
 
   useEffect(() => {
     const onResize = () => setCellSize(getCellSize())
@@ -205,6 +206,8 @@ export default function App() {
                       {segments.map((symbol, i) => {
                         const isJackpot = JACKPOT_LETTERS.includes(symbol)
                         const isWinner = !spinning && winningCells.has(`${i}-${c}`)
+                        const assetUrl = getAsset(symbol)
+                        const isImage = isImageAsset(assetUrl)
                         return (
                           <div key={i}
                             style={{
@@ -219,17 +222,19 @@ export default function App() {
                               display: 'flex',
                               alignItems: 'center',
                               justifyContent: 'center',
-                              background: i % 2 === 0 ? 'rgba(255,255,255,0.9)' : 'rgba(240,240,245,0.95)',
+                              background: isImage
+                                ? `url(${assetUrl}) center / contain no-repeat, ${i % 2 === 0 ? 'rgba(255,255,255,0.9)' : 'rgba(240,240,245,0.95)'}`
+                                : (i % 2 === 0 ? 'rgba(255,255,255,0.9)' : 'rgba(240,240,245,0.95)'),
                               borderTop: isWinner ? '2px solid #ffd700' : '1.5px solid rgba(212,160,23,0.6)',
                               borderBottom: isWinner ? '2px solid #ffd700' : '1.5px solid rgba(212,160,23,0.6)',
                               boxShadow: isWinner ? '0 0 15px #ffd700, 0 0 30px rgba(255,215,0,0.4)' : 'none',
-                              fontSize: `${Math.round(cellSize.w * 0.35)}px`,
+                              fontSize: isImage ? '0' : `${Math.round(cellSize.w * 0.35)}px`,
                               color: isJackpot ? '#111' : '#444',
                               fontWeight: isJackpot ? 'bold' : 'normal',
                               animation: isWinner ? 'pulseGlow 0.8s ease-in-out infinite alternate' : 'none',
                             }}
                           >
-                            {renderSymbol(symbol)}
+                            {isImage ? null : assetUrl}
                           </div>
                         )
                       })}
@@ -258,7 +263,7 @@ export default function App() {
                 <div className="text-xs sm:text-sm md:text-base">{'\u{1F3C6}'} WINNER! Total Multiplier: x{winData.totalMultiplier}</div>
                 <div className="flex flex-col gap-0.5 text-[10px] sm:text-xs md:text-sm text-gray-300 mt-1">
                   {payableLines.map(l => (
-                    <div key={l.name}>{l.name}: {renderSymbol(l.symbol)} x{l.multiplier}</div>
+                    <div key={l.name} className="flex items-center justify-center gap-1">{l.name}: {isImageAsset(getAsset(l.symbol)) ? <img src={getAsset(l.symbol)} alt={l.symbol} style={{ width: '1.2em', height: '1.2em', verticalAlign: 'middle', objectFit: 'contain' }} /> : getAsset(l.symbol)} x{l.multiplier}</div>
                   ))}
                 </div>
               </>

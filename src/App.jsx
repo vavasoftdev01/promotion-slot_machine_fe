@@ -30,19 +30,22 @@ const CYLINDER_N = 14
 const SPIN_DURATION = 2.5
 const STAGGER = 0.12
 
-const ALL_SYMBOLS = [
-  'cherry','cherry','cherry','cherry','lemon','lemon','orange',
-  'seven','star','grape','watermelon','diamond',
-  'K','B','C','G','A','M','E',
+const COMMON_SYMBOLS = ['cherry','cherry','cherry','cherry','lemon','lemon','orange','seven','star','grape','watermelon','diamond']
+
+const NEON_COLORS = [
+  '#ff0080', '#00ffff', '#39ff14', '#ff1493', '#ffa500',
+  '#8a2be2', '#00ff7f', '#ff00ff', '#00bfff', '#ffd700',
+  '#32cd32', '#ff4500', '#9370db', '#00fa9a',
 ]
 
-function buildCylinderSegments(top, mid, bot) {
+function buildCylinderSegments(top, mid, bot, reelIndex) {
+  const pool = [...COMMON_SYMBOLS, JACKPOT_LETTERS[reelIndex]]
   const segs = []
   for (let i = 0; i < CYLINDER_N; i++) {
     if (i === 0) segs.push(top)
     else if (i === 1) segs.push(mid)
     else if (i === 2) segs.push(bot)
-    else segs.push(ALL_SYMBOLS[Math.floor(Math.random() * ALL_SYMBOLS.length)])
+    else segs.push(pool[Math.floor(Math.random() * pool.length)])
   }
   return segs
 }
@@ -56,7 +59,14 @@ export default function App() {
   const [cellSize, setCellSize] = useState(getCellSize)
   const [spinKey, setSpinKey] = useState(0)
   const [strips, setStrips] = useState(() =>
-    Array.from({ length: COLS }, (_, c) => buildCylinderSegments('cherry', 'lemon', 'orange'))
+    Array.from({ length: COLS }, (_, c) =>
+      buildCylinderSegments(
+        COMMON_SYMBOLS[Math.floor(Math.random() * COMMON_SYMBOLS.length)],
+        JACKPOT_LETTERS[c],
+        COMMON_SYMBOLS[Math.floor(Math.random() * COMMON_SYMBOLS.length)],
+        c
+      )
+    )
   )
 
   const spinLock = useRef(false)
@@ -88,7 +98,7 @@ export default function App() {
 
       // Build cylinder segments with result symbols at positions 0, 1, 2
       const newSegments = Array.from({ length: COLS }, (_, c) =>
-        buildCylinderSegments(data.grid[0][c], data.grid[1][c], data.grid[2][c])
+        buildCylinderSegments(data.grid[0][c], data.grid[1][c], data.grid[2][c], c)
       )
       setStrips(newSegments)
       setWinData(data)
@@ -171,19 +181,18 @@ export default function App() {
   const payableLines = winData?.winningLines?.filter(l => l.multiplier > 0)
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#0d0d2b] to-[#1a1a3e] font-['Inter',sans-serif] p-2 sm:p-4">
-      <div className="bg-gradient-to-b from-wood-dark via-wood-darker to-wood-dark border-3 border-gold rounded-3xl px-3 sm:px-5 md:px-8 lg:px-10 pb-4 sm:pb-6 md:pb-8 lg:pb-10 pt-3 sm:pt-5 md:pt-6 lg:pt-8 shadow-[0_0_30px_rgba(212,160,23,0.3),_inset_0_0_60px_rgba(0,0,0,0.5)] text-center w-full max-w-[48rem]">
-        {/* Screen */}
-        <div className="bg-gradient-to-b from-[#0a0a1a] to-[#111128] border-2 sm:border-4 border-gray-500 rounded-2xl p-2 sm:p-3 md:p-4 lg:p-5 mb-3 sm:mb-5 shadow-[inset_0_0_40px_rgba(0,0,0,0.9)] relative"
-          style={{ clipPath: 'inset(0 round 16px)' }}>
-          {/* 3D CSS Cylinder Reels (permanent display) */}
-          <div className="relative">
-            <div className="absolute inset-0 z-10 pointer-events-none"
-              style={{
-                background: 'linear-gradient(to bottom, rgba(0,0,0,0.85) 0%, transparent 25%, transparent 75%, rgba(0,0,0,0.85) 100%)',
-              }}
-            />
-            <div className="grid grid-cols-7 gap-x-[3px] sm:gap-x-[4px] md:gap-x-[5px] lg:gap-x-[6px]" style={{ perspective: '1200px' }}>
+    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-[#0d0d2b] to-[#1a1a3e] font-['Inter',sans-serif] p-2 sm:p-4 gap-4 sm:gap-5">
+      {/* Screen */}
+      <div className="bg-gradient-to-b from-[#0a0a1a] to-[#111128] border-2 sm:border-4 border-gray-500 rounded-2xl p-2 sm:p-3 md:p-4 lg:p-5 shadow-[inset_0_0_40px_rgba(0,0,0,0.9)] relative w-full max-w-[48rem]"
+        style={{ clipPath: 'inset(0 round 16px)' }}>
+        {/* 3D CSS Cylinder Reels (permanent display) */}
+        <div className="relative">
+          <div className="absolute inset-0 z-10 pointer-events-none"
+            style={{
+              background: 'linear-gradient(to bottom, rgba(0,0,0,0.85) 0%, transparent 25%, transparent 75%, rgba(0,0,0,0.85) 100%)',
+            }}
+          />
+          <div className="grid grid-cols-7 gap-x-[3px] sm:gap-x-[4px] md:gap-x-[5px] lg:gap-x-[6px]" style={{ perspective: '1200px' }}>
               {strips.map((segments, c) => {
                 const radius = cellSize.h * 1.8
                 const diameter = radius * 2
@@ -208,13 +217,15 @@ export default function App() {
                         const isWinner = !spinning && winningCells.has(`${i}-${c}`)
                         const assetUrl = getAsset(symbol)
                         const isImage = isImageAsset(assetUrl)
+                        const neonColor = NEON_COLORS[i % NEON_COLORS.length]
+                        const segBg = `linear-gradient(135deg, ${neonColor}dd, rgba(255,255,255,0.15))`
                         return (
                           <div key={i}
                             style={{
                               position: 'absolute',
                               top: '50%',
-                              left: 0,
-                              right: 0,
+                              left: 1,
+                              right: 1,
                               height: segHeight,
                               marginTop: -segHeight / 2,
                               transform: `rotateX(${stepAngle * i}deg) translateZ(${radius}px)`,
@@ -222,19 +233,20 @@ export default function App() {
                               display: 'flex',
                               alignItems: 'center',
                               justifyContent: 'center',
-                              background: isImage
-                                ? `url(${assetUrl}) center / contain no-repeat, ${i % 2 === 0 ? 'rgba(255,255,255,0.9)' : 'rgba(240,240,245,0.95)'}`
-                                : (i % 2 === 0 ? 'rgba(255,255,255,0.9)' : 'rgba(240,240,245,0.95)'),
-                              borderTop: isWinner ? '2px solid #ffd700' : '1.5px solid rgba(212,160,23,0.6)',
-                              borderBottom: isWinner ? '2px solid #ffd700' : '1.5px solid rgba(212,160,23,0.6)',
-                              boxShadow: isWinner ? '0 0 15px #ffd700, 0 0 30px rgba(255,215,0,0.4)' : 'none',
+                              background: segBg,
+                              border: isWinner ? `0.1px solid ${neonColor}` : `0.1px solid ${neonColor}`,
+                              boxShadow: isWinner
+                                ? `0 0 10px ${neonColor}, 0 0 20px ${neonColor}80, 0 0 40px ${neonColor}40`
+                                : `0 0 4px ${neonColor}60, 0 0 8px ${neonColor}30`,
                               fontSize: isImage ? '0' : `${Math.round(cellSize.w * 0.35)}px`,
-                              color: isJackpot ? '#111' : '#444',
+                              color: isWinner ? neonColor : '#fff',
                               fontWeight: isJackpot ? 'bold' : 'normal',
                               animation: isWinner ? 'pulseGlow 0.8s ease-in-out infinite alternate' : 'none',
                             }}
                           >
-                            {isImage ? null : assetUrl}
+                            {isImage
+                              ? <img src={assetUrl} alt={symbol} style={{ width: '90%', height: '90%', objectFit: 'contain' }} />
+                              : assetUrl}
                           </div>
                         )
                       })}
@@ -246,34 +258,35 @@ export default function App() {
           </div>
         </div>
 
-        {/* Info panel */}
-        <div className="mb-4 space-y-2">
-          {freeSpins > 0 && (
-            <div className="text-cyan font-bold text-xs sm:text-sm md:text-base px-2 sm:px-3 py-1 sm:py-1.5 bg-[rgba(0,229,255,0.1)] border border-[rgba(0,229,255,0.3)] rounded-lg animate-[pulseCyan_1s_ease-in-out_infinite_alternate]">
-              {'\u{1F300}'} Free Spins: {freeSpins}
-            </div>
-          )}
-          <div className="min-h-10 text-gold-light font-bold text-sm sm:text-base md:text-lg">
-            {jackpotLine ? (
-              <div className="text-[#ff1744] text-lg sm:text-xl md:text-2xl animate-[jackpotPulse_0.5s_ease-in-out_infinite_alternate] [text-shadow:0_0_20px_rgba(255,23,68,0.6)]">
-                {'\u{1F3C6}'} JACKPOT!!! Pot: {jackpotLine.potAmount}
-              </div>
-            ) : payableLines?.length > 0 ? (
-              <>
-                <div className="text-xs sm:text-sm md:text-base">{'\u{1F3C6}'} WINNER! Total Multiplier: x{winData.totalMultiplier}</div>
-                <div className="flex flex-col gap-0.5 text-[10px] sm:text-xs md:text-sm text-gray-300 mt-1">
-                  {payableLines.map(l => (
-                    <div key={l.name} className="flex items-center justify-center gap-1">{l.name}: {isImageAsset(getAsset(l.symbol)) ? <img src={getAsset(l.symbol)} alt={l.symbol} style={{ width: '1.2em', height: '1.2em', verticalAlign: 'middle', objectFit: 'contain' }} /> : getAsset(l.symbol)} x{l.multiplier}</div>
-                  ))}
-                </div>
-              </>
-            ) : winData && !winData.isWinner ? null : (
-              <span>{spinning ? 'Spinning...' : 'Press SPIN to play!'}</span>
-            )}
+      {/* Info panel */}
+      <div className="w-full max-w-[48rem] space-y-2">
+        {freeSpins > 0 && (
+          <div className="text-cyan font-bold text-xs sm:text-sm md:text-base px-2 sm:px-3 py-1 sm:py-1.5 bg-[rgba(0,229,255,0.1)] border border-[rgba(0,229,255,0.3)] rounded-lg animate-[pulseCyan_1s_ease-in-out_infinite_alternate]">
+            {'\u{1F300}'} Free Spins: {freeSpins}
           </div>
+        )}
+        <div className="min-h-10 text-gold-light font-bold text-sm sm:text-base md:text-lg">
+          {jackpotLine ? (
+            <div className="text-[#ff1744] text-lg sm:text-xl md:text-2xl animate-[jackpotPulse_0.5s_ease-in-out_infinite_alternate] [text-shadow:0_0_20px_rgba(255,23,68,0.6)]">
+              {'\u{1F3C6}'} JACKPOT!!! Pot: {jackpotLine.potAmount}
+            </div>
+          ) : payableLines?.length > 0 ? (
+            <>
+              <div className="text-xs sm:text-sm md:text-base">{'\u{1F3C6}'} WINNER! Total Multiplier: x{winData.totalMultiplier}</div>
+              <div className="flex flex-col gap-0.5 text-[10px] sm:text-xs md:text-sm text-gray-300 mt-1">
+                {payableLines.map(l => (
+                  <div key={l.name} className="flex items-center justify-center gap-1">{l.name}: {isImageAsset(getAsset(l.symbol)) ? <img src={getAsset(l.symbol)} alt={l.symbol} style={{ width: '1.2em', height: '1.2em', verticalAlign: 'middle', objectFit: 'contain' }} /> : getAsset(l.symbol)} x{l.multiplier}</div>
+                ))}
+              </div>
+            </>
+          ) : winData && !winData.isWinner ? null : (
+            <span>{spinning ? 'Spinning...' : 'Press SPIN to play!'}</span>
+          )}
         </div>
+      </div>
 
-        {/* Spin button */}
+      {/* Cabinet (spin button only) */}
+      <div className="bg-wood-darker border-3 border-gold rounded-3xl px-8 sm:px-12 md:px-15 py-4 sm:py-5 shadow-[0_0_30px_rgba(212,160,23,0.3),_inset_0_0_60px_rgba(0,0,0,0.5)] text-center w-full max-w-[48rem]">
         <button
           onClick={handleSpin}
           disabled={spinning || miniGameActive}
@@ -293,8 +306,8 @@ export default function App() {
 
       <style>{`
         @keyframes pulseGlow {
-          from { box-shadow: 0 0 10px #ffd700, 0 0 20px rgba(255, 215, 0, 0.3); }
-          to   { box-shadow: 0 0 20px #ffd700, 0 0 40px rgba(255, 215, 0, 0.6); }
+          from { box-shadow: 0 0 10px currentColor, 0 0 20px currentColor; }
+          to   { box-shadow: 0 0 20px currentColor, 0 0 40px currentColor; }
         }
         @keyframes pulseCyan {
           from { box-shadow: 0 0 4px rgba(0, 229, 255, 0.2); }

@@ -1,18 +1,12 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import gsap from 'gsap'
+import MachineContainer from './components/MachineContainer'
+import SlotScreen from './components/SlotScreen'
 
 const ASSET_MAP = {
-  cherry: '/images/emoji/cherry.png',
-  lemon: '/images/emoji/lemon.png',
-  orange: '/images/emoji/orange.png',
-  plum: '/images/emoji/plum.png',
-  bell: '/images/emoji/bell.png',
-  seven: '/images/emoji/seven.png',
-  bar: '/images/emoji/bar.png',
-  star: '/images/emoji/star.png',
-  grape: '/images/emoji/grape.png',
-  watermelon: '/images/emoji/watermelon.png',
-  diamond: '/images/emoji/diamond.png',
+  cherry: '🍒', lemon: '🍋', orange: '🍊', plum: '🫐',
+  bell: '🔔', seven: '7️⃣', bar: '🥃', star: '⭐',
+  grape: '🍇', watermelon: '🍉', diamond: '💎',
   K: 'K', B: 'B', C: 'C', G: 'G', A: 'A', M: 'M', E: 'E',
 }
 
@@ -31,12 +25,6 @@ const SPIN_DURATION = 2.5
 const STAGGER = 0.12
 
 const COMMON_SYMBOLS = ['cherry','cherry','cherry','cherry','lemon','lemon','orange','seven','star','grape','watermelon','diamond']
-
-const NEON_COLORS = [
-  '#ff0080', '#00ffff', '#39ff14', '#ff1493', '#ffa500',
-  '#8a2be2', '#00ff7f', '#ff00ff', '#00bfff', '#ffd700',
-  '#32cd32', '#ff4500', '#9370db', '#00fa9a',
-]
 
 function buildCylinderSegments(top, mid, bot, reelIndex) {
   const pool = [...COMMON_SYMBOLS, JACKPOT_LETTERS[reelIndex]]
@@ -73,9 +61,9 @@ export default function App() {
   const stripRefs = useRef([])
   const tlRef = useRef(null)
   const pendingMiniGame = useRef(false)
+  const armWrapRef = useRef(null)
 
   const getAsset = (symbol) => ASSET_MAP[symbol] ?? symbol
-  const isImageAsset = (asset) => typeof asset === 'string' && asset.startsWith('/')
 
   useEffect(() => {
     const onResize = () => setCellSize(getCellSize())
@@ -85,6 +73,7 @@ export default function App() {
 
   const handleSpin = useCallback(async () => {
     if (spinLock.current) return
+    animateLever()
     spinLock.current = true
     pendingMiniGame.current = false
 
@@ -126,7 +115,7 @@ export default function App() {
     }
   }, [])
 
-  // Set initial cylinder rotation so middle segment (1) is front-facing
+  // Set initial cylinder rotation so middle segment faces front
   useEffect(() => {
     const stepAngle = 360 / CYLINDER_N
     stripRefs.current.forEach(ref => {
@@ -177,127 +166,81 @@ export default function App() {
     }
   }, [spinKey, cellSize])
 
+  useEffect(() => {
+    if (armWrapRef.current) gsap.set(armWrapRef.current, { rotation: 0 })
+  }, [])
+
+  const animateLever = useCallback(() => {
+    if (!armWrapRef.current) return
+    const el = armWrapRef.current
+    gsap.to(el, {
+      rotation: -25,
+      duration: 0.15,
+      ease: 'power2.in',
+      onComplete: () => {
+        gsap.to(el, {
+          rotation: 0,
+          duration: 0.4,
+          ease: 'elastic.out(1, 0.3)',
+        })
+      },
+    })
+  }, [])
+
+  const handleLeverPull = useCallback(() => {
+    if (spinLock.current || !armWrapRef.current) return
+    animateLever()
+    handleSpin()
+  }, [animateLever, handleSpin])
+
+  const bodyWidth = Math.min(cellSize.w * 7 + 80, 520)
   const jackpotLine = winData?.winningLines?.find(l => l.name === 'Jackpot')
   const payableLines = winData?.winningLines?.filter(l => l.multiplier > 0)
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-[#0d0d2b] to-[#1a1a3e] font-['Inter',sans-serif] p-2 sm:p-4 gap-4 sm:gap-5">
-      {/* Screen */}
-      <div className="bg-gradient-to-b from-[#0a0a1a] to-[#111128] border-2 sm:border-4 border-gray-500 rounded-2xl p-2 sm:p-3 md:p-4 lg:p-5 shadow-[inset_0_0_40px_rgba(0,0,0,0.9)] relative w-full max-w-[48rem]"
-        style={{ clipPath: 'inset(0 round 16px)' }}>
-        {/* 3D CSS Cylinder Reels (permanent display) */}
-        <div className="relative">
-          <div className="absolute inset-0 z-10 pointer-events-none"
-            style={{
-              background: 'linear-gradient(to bottom, rgba(0,0,0,0.85) 0%, transparent 25%, transparent 75%, rgba(0,0,0,0.85) 100%)',
-            }}
-          />
-          <div className="grid grid-cols-7 gap-x-[3px] sm:gap-x-[4px] md:gap-x-[5px] lg:gap-x-[6px]" style={{ perspective: '1200px' }}>
-              {strips.map((segments, c) => {
-                const radius = cellSize.h * 1.8
-                const diameter = radius * 2
-                const stepAngle = 360 / CYLINDER_N
-                const segHeight = (2 * Math.PI * radius) / CYLINDER_N
-                return (
-                  <div key={`s-${c}`} className="relative overflow-hidden" style={{ height: cellSize.h * 3 }}>
-                    <div ref={el => { stripRefs.current[c] = el }}
-                      style={{
-                        position: 'absolute',
-                        top: '50%',
-                        left: '50%',
-                        width: diameter,
-                        height: diameter,
-                        marginLeft: -radius,
-                        marginTop: -radius,
-                        transformStyle: 'preserve-3d',
-                      }}
-                    >
-                      {segments.map((symbol, i) => {
-                        const isJackpot = JACKPOT_LETTERS.includes(symbol)
-                        const isWinner = !spinning && winningCells.has(`${i}-${c}`)
-                        const assetUrl = getAsset(symbol)
-                        const isImage = isImageAsset(assetUrl)
-                        const neonColor = NEON_COLORS[i % NEON_COLORS.length]
-                        const segBg = `linear-gradient(135deg, ${neonColor}dd, rgba(255,255,255,0.15))`
-                        return (
-                          <div key={i}
-                            style={{
-                              position: 'absolute',
-                              top: '50%',
-                              left: 1,
-                              right: 1,
-                              height: segHeight,
-                              marginTop: -segHeight / 2,
-                              transform: `rotateX(${stepAngle * i}deg) translateZ(${radius}px)`,
-                              backfaceVisibility: 'hidden',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              background: segBg,
-                              border: isWinner ? `0.1px solid ${neonColor}` : `0.1px solid ${neonColor}`,
-                              boxShadow: isWinner
-                                ? `0 0 10px ${neonColor}, 0 0 20px ${neonColor}80, 0 0 40px ${neonColor}40`
-                                : `0 0 4px ${neonColor}60, 0 0 8px ${neonColor}30`,
-                              fontSize: isImage ? '0' : `${Math.round(cellSize.w * 0.35)}px`,
-                              color: isWinner ? neonColor : '#fff',
-                              fontWeight: isJackpot ? 'bold' : 'normal',
-                              animation: isWinner ? 'pulseGlow 0.8s ease-in-out infinite alternate' : 'none',
-                            }}
-                          >
-                            {isImage
-                              ? <img src={assetUrl} alt={symbol} style={{ width: '90%', height: '90%', objectFit: 'contain' }} />
-                              : assetUrl}
-                          </div>
-                        )
-                      })}
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          </div>
-        </div>
+    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-[#0a0015] via-[#1a0030] to-[#0d0020] font-['Inter',sans-serif] p-4 gap-4">
+      <MachineContainer
+        bodyWidth={bodyWidth}
+        handleSpin={handleSpin}
+        handleLeverPull={handleLeverPull}
+        armWrapRef={armWrapRef}
+        spinning={spinning}
+        miniGameActive={miniGameActive}
+      >
+        <SlotScreen
+          strips={strips}
+          cellSize={cellSize}
+          winningCells={winningCells}
+          spinning={spinning}
+          stripRefs={stripRefs}
+        />
+      </MachineContainer>
 
-      {/* Info panel */}
+      {/* Win display */}
       <div className="w-full max-w-[48rem] space-y-2">
         {freeSpins > 0 && (
-          <div className="text-cyan font-bold text-xs sm:text-sm md:text-base px-2 sm:px-3 py-1 sm:py-1.5 bg-[rgba(0,229,255,0.1)] border border-[rgba(0,229,255,0.3)] rounded-lg animate-[pulseCyan_1s_ease-in-out_infinite_alternate]">
+          <div className="text-[#ffd700] font-bold text-xs sm:text-sm md:text-base px-2 sm:px-3 py-1 sm:py-1.5 bg-[rgba(255,215,0,0.1)] border border-[rgba(255,215,0,0.3)] rounded-lg">
             {'\u{1F300}'} Free Spins: {freeSpins}
           </div>
         )}
-        <div className="min-h-10 text-gold-light font-bold text-sm sm:text-base md:text-lg">
+        <div className="min-h-10 text-[#e2e8f0] font-bold text-sm sm:text-base md:text-lg text-center">
           {jackpotLine ? (
-            <div className="text-[#ff1744] text-lg sm:text-xl md:text-2xl animate-[jackpotPulse_0.5s_ease-in-out_infinite_alternate] [text-shadow:0_0_20px_rgba(255,23,68,0.6)]">
+            <div className="text-[#ff6b6b] text-lg sm:text-xl md:text-2xl animate-[jackpotPulse_0.5s_ease-in-out_infinite_alternate] [text-shadow:0_0_20px_rgba(255,107,107,0.6)]">
               {'\u{1F3C6}'} JACKPOT!!! Pot: {jackpotLine.potAmount}
             </div>
           ) : payableLines?.length > 0 ? (
             <>
-              <div className="text-xs sm:text-sm md:text-base">{'\u{1F3C6}'} WINNER! Total Multiplier: x{winData.totalMultiplier}</div>
-              <div className="flex flex-col gap-0.5 text-[10px] sm:text-xs md:text-sm text-gray-300 mt-1">
+              <div className="text-xs sm:text-sm md:text-base text-[#ffd700]">{'\u{1F3C6}'} WINNER! Total Multiplier: x{winData.totalMultiplier}</div>
+              <div className="flex flex-col gap-0.5 text-[10px] sm:text-xs md:text-sm text-[#cbd5e1] mt-1">
                 {payableLines.map(l => (
-                  <div key={l.name} className="flex items-center justify-center gap-1">{l.name}: {isImageAsset(getAsset(l.symbol)) ? <img src={getAsset(l.symbol)} alt={l.symbol} style={{ width: '1.2em', height: '1.2em', verticalAlign: 'middle', objectFit: 'contain' }} /> : getAsset(l.symbol)} x{l.multiplier}</div>
+                  <div key={l.name} className="flex items-center justify-center gap-1">{l.name}: {getAsset(l.symbol)} x{l.multiplier}</div>
                 ))}
               </div>
             </>
           ) : winData && !winData.isWinner ? null : (
-            <span>{spinning ? 'Spinning...' : 'Press SPIN to play!'}</span>
+            <span>{spinning ? 'Spinning...' : 'Pull the lever!'}</span>
           )}
         </div>
-      </div>
-
-      {/* Cabinet (spin button only) */}
-      <div className="bg-wood-darker border-3 border-gold rounded-3xl px-8 sm:px-12 md:px-15 py-4 sm:py-5 shadow-[0_0_30px_rgba(212,160,23,0.3),_inset_0_0_60px_rgba(0,0,0,0.5)] text-center w-full max-w-[48rem]">
-        <button
-          onClick={handleSpin}
-          disabled={spinning || miniGameActive}
-          className="px-8 sm:px-10 md:px-15 py-3 sm:py-4 text-lg sm:text-xl md:text-2xl font-bold uppercase tracking-widest text-wood-darker
-            bg-gradient-to-b from-gold-light to-gold-dark border-2 border-gold rounded-full
-            cursor-pointer transition-all duration-200 shadow-[0_4px_15px_rgba(212,160,23,0.4)]
-            hover:-translate-y-0.5 hover:shadow-[0_6px_20px_rgba(212,160,23,0.6)]
-            active:translate-y-0 disabled:opacity-60 disabled:cursor-not-allowed disabled:transform-none"
-        >
-          SPIN
-        </button>
       </div>
 
       {miniGameActive && (
@@ -306,12 +249,8 @@ export default function App() {
 
       <style>{`
         @keyframes pulseGlow {
-          from { box-shadow: 0 0 10px currentColor, 0 0 20px currentColor; }
-          to   { box-shadow: 0 0 20px currentColor, 0 0 40px currentColor; }
-        }
-        @keyframes pulseCyan {
-          from { box-shadow: 0 0 4px rgba(0, 229, 255, 0.2); }
-          to   { box-shadow: 0 0 12px rgba(0, 229, 255, 0.5); }
+          from { box-shadow: 0 0 5px #ff6b6b, 0 0 10px #ff6b6b; }
+          to   { box-shadow: 0 0 15px #ff6b6b, 0 0 30px #ff6b6b; }
         }
         @keyframes jackpotPulse {
           from { transform: scale(1); }
@@ -366,54 +305,54 @@ function MiniGameModal({ onClose }) {
     .map((s, i) => `${s.color} ${(i / num) * 100}% ${((i + 1) / num) * 100}%`)
     .join(', ')
 
-  return (
-    <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 transition-opacity duration-300 p-2 sm:p-4">
-      <div className="bg-gradient-to-br from-[#1a1a2e] to-[#2d1b4e] border-3 border-gold-light rounded-2xl p-4 sm:p-6 md:p-8 text-center max-w-sm sm:max-w-md w-full shadow-[0_0_40px_rgba(255,215,0,0.3)]">
-        <h2 className="text-gold-light text-lg sm:text-xl md:text-2xl font-bold mb-3 sm:mb-4">{'\u{2B50}'} Roulette Bonus {'\u{2B50}'}</h2>
-        <div className="relative w-[200px] h-[200px] sm:w-[250px] sm:h-[250px] md:w-[300px] md:h-[300px] mx-auto mb-4 sm:mb-5">
-          <div className="absolute -top-3 left-1/2 -translate-x-1/2 text-2xl sm:text-3xl text-gold-light z-10 drop-shadow-[0_0_6px_rgba(255,215,0,0.6)]">{'\u{25BC}'}</div>
-          <div
-            className="w-full h-full rounded-full border-4 border-gold-light relative shadow-[0_0_20px_rgba(255,215,0,0.3),_inset_0_0_15px_rgba(0,0,0,0.3)]"
-            style={{
-              background: `conic-gradient(${gradient})`,
-              transform: `rotate(${wheelRotation}deg)`,
-              transition: spinning ? 'transform 4s cubic-bezier(0.17, 0.67, 0.12, 0.99)' : 'none',
-            }}
-            onTransitionEnd={handleTransitionEnd}
-          >
-            {segments.segments.map((seg, i) => {
-              const angle = (i / num) * 360 + segAngle / 2
-              const rad = (angle * Math.PI) / 180
-              const r = segments.segments.length
-              const cx = 100; const cy = 100
-              const labelR = 72
-              const x = cx + labelR * Math.sin(rad)
-              const y = cy - labelR * Math.cos(rad)
-              return (
-                <div key={i} className="absolute font-bold text-[10px] sm:text-xs md:text-sm text-white pointer-events-none z-[3] [text-shadow:0_1px_3px_rgba(0,0,0,0.8)]"
-                  style={{ left: `${x}px`, top: `${y}px`, transform: 'translate(-50%, -50%)' }}
-                >{'\u00D7'}{seg.multiplier}</div>
-              )
-            })}
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[50px] h-[50px] sm:w-[60px] sm:h-[60px] md:w-[70px] md:h-[70px] rounded-full bg-[#1a1a2e] border-3 border-gray-500 flex items-center justify-center text-[10px] sm:text-xs md:text-sm font-bold text-gold-light z-[5]"
-              style={{ borderColor: result ? '#ffd700' : undefined, boxShadow: result ? '0 0 20px rgba(255,215,0,0.6)' : undefined }}
-            >{result ? `\u00D7${result.multiplier}` : 'SPIN'}</div>
-          </div>
-        </div>
-        {!spinning ? (
-          <button onClick={handleSpinWheel}
-            className="px-6 sm:px-8 md:px-10 py-2 sm:py-3 text-sm sm:text-base md:text-lg font-bold uppercase tracking-wider text-wood-darker bg-gradient-to-b from-gold-light to-gold-dark border-2 border-gold rounded-full cursor-pointer transition-all duration-200 shadow-[0_4px_15px_rgba(212,160,23,0.4)] hover:-translate-y-0.5 hover:shadow-[0_6px_20px_rgba(212,160,23,0.6)] active:translate-y-0"
-          >{'\u{1F3B2}'} SPIN WHEEL</button>
-        ) : result ? (
-          <button onClick={onClose}
-            className="px-6 sm:px-8 md:px-10 py-2 sm:py-3 text-sm sm:text-base md:text-lg font-bold uppercase tracking-wider text-wood-darker bg-gradient-to-b from-gold-light to-gold-dark border-2 border-gold rounded-full cursor-pointer transition-all duration-200"
-          >CLOSE</button>
-        ) : (
-          <button disabled
-            className="px-6 sm:px-8 md:px-10 py-2 sm:py-3 text-sm sm:text-base md:text-lg font-bold uppercase tracking-wider text-wood-darker bg-gradient-to-b from-gold-light to-gold-dark border-2 border-gold rounded-full opacity-60 cursor-not-allowed"
-          >Spinning...</button>
-        )}
-      </div>
-    </div>
-  )
+  // return (
+  //   <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 transition-opacity duration-300 p-2 sm:p-4">
+  //     <div className="bg-gradient-to-br from-[#1a1a2e] to-[#2d1b4e] border-3 border-gold-light rounded-2xl p-4 sm:p-6 md:p-8 text-center max-w-sm sm:max-w-md w-full shadow-[0_0_40px_rgba(255,215,0,0.3)]">
+  //       <h2 className="text-gold-light text-lg sm:text-xl md:text-2xl font-bold mb-3 sm:mb-4">{'\u{2B50}'} Roulette Bonus {'\u{2B50}'}</h2>
+  //       <div className="relative w-[200px] h-[200px] sm:w-[250px] sm:h-[250px] md:w-[300px] md:h-[300px] mx-auto mb-4 sm:mb-5">
+  //         <div className="absolute -top-3 left-1/2 -translate-x-1/2 text-2xl sm:text-3xl text-gold-light z-10 drop-shadow-[0_0_6px_rgba(255,215,0,0.6)]">{'\u{25BC}'}</div>
+  //         <div
+  //           className="w-full h-full rounded-full border-4 border-gold-light relative shadow-[0_0_20px_rgba(255,215,0,0.3),_inset_0_0_15px_rgba(0,0,0,0.3)]"
+  //           style={{
+  //             background: `conic-gradient(${gradient})`,
+  //             transform: `rotate(${wheelRotation}deg)`,
+  //             transition: spinning ? 'transform 4s cubic-bezier(0.17, 0.67, 0.12, 0.99)' : 'none',
+  //           }}
+  //           onTransitionEnd={handleTransitionEnd}
+  //         >
+  //           {segments.segments.map((seg, i) => {
+  //             const angle = (i / num) * 360 + segAngle / 2
+  //             const rad = (angle * Math.PI) / 180
+  //             const r = segments.segments.length
+  //             const cx = 100; const cy = 100
+  //             const labelR = 72
+  //             const x = cx + labelR * Math.sin(rad)
+  //             const y = cy - labelR * Math.cos(rad)
+  //             return (
+  //               <div key={i} className="absolute font-bold text-[10px] sm:text-xs md:text-sm text-white pointer-events-none z-[3] [text-shadow:0_1px_3px_rgba(0,0,0,0.8)]"
+  //                 style={{ left: `${x}px`, top: `${y}px`, transform: 'translate(-50%, -50%)' }}
+  //               >{'\u00D7'}{seg.multiplier}</div>
+  //             )
+  //           })}
+  //           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[50px] h-[50px] sm:w-[60px] sm:h-[60px] md:w-[70px] md:h-[70px] rounded-full bg-[#1a1a2e] border-3 border-gray-500 flex items-center justify-center text-[10px] sm:text-xs md:text-sm font-bold text-gold-light z-[5]"
+  //             style={{ borderColor: result ? '#ffd700' : undefined, boxShadow: result ? '0 0 20px rgba(255,215,0,0.6)' : undefined }}
+  //           >{result ? `\u00D7${result.multiplier}` : 'SPIN'}</div>
+  //         </div>
+  //       </div>
+  //       {!spinning ? (
+  //         <button onClick={handleSpinWheel}
+  //           className="px-6 sm:px-8 md:px-10 py-2 sm:py-3 text-sm sm:text-base md:text-lg font-bold uppercase tracking-wider text-wood-darker bg-gradient-to-b from-gold-light to-gold-dark border-2 border-gold rounded-full cursor-pointer transition-all duration-200 shadow-[0_4px_15px_rgba(212,160,23,0.4)] hover:-translate-y-0.5 hover:shadow-[0_6px_20px_rgba(212,160,23,0.6)] active:translate-y-0"
+  //         >{'\u{1F3B2}'} SPIN WHEEL</button>
+  //       ) : result ? (
+  //         <button onClick={onClose}
+  //           className="px-6 sm:px-8 md:px-10 py-2 sm:py-3 text-sm sm:text-base md:text-lg font-bold uppercase tracking-wider text-wood-darker bg-gradient-to-b from-gold-light to-gold-dark border-2 border-gold rounded-full cursor-pointer transition-all duration-200"
+  //         >CLOSE</button>
+  //       ) : (
+  //         <button disabled
+  //           className="px-6 sm:px-8 md:px-10 py-2 sm:py-3 text-sm sm:text-base md:text-lg font-bold uppercase tracking-wider text-wood-darker bg-gradient-to-b from-gold-light to-gold-dark border-2 border-gold rounded-full opacity-60 cursor-not-allowed"
+  //         >Spinning...</button>
+  //       )}
+  //     </div>
+  //   </div>
+  // )
 }

@@ -7,7 +7,7 @@ const MachineContainer = ({
   spinning,
   miniGameActive,
 }) => (
-  <div className="relative flex flex-col items-center">
+  <div className="relative flex flex-col items-stretch w-full">
     {/* Top Light */}
     <div className="flex flex-col items-center" style={{ marginBottom: '-4px', zIndex: 2 }}>
       <div className="w-[50px] h-[25px] rounded-t-[50px]" style={{
@@ -21,10 +21,8 @@ const MachineContainer = ({
     </div>
 
     {/* Machine Body */}
-    <div className="flex flex-col" style={{
-      width: `${bodyWidth}px`,
-      maxWidth: '90vw',
-      borderRadius: '20px',
+    <div className="flex flex-col w-full lg:max-w-[90%]" style={{
+      borderRadius: '12px',
       padding: '20px 15px 15px',
       gap: '15px',
       position: 'relative',
@@ -76,14 +74,16 @@ const MachineContainer = ({
             textShadow: '0 1px 2px rgba(0,0,0,0.3)',
           }}
         >
-          {spinning ? 'SPINNING...' : 'SPIN'}
+          <span className="flex items-center justify-center gap-2">
+            <img src="/images/icons/spin.svg" alt="" className="w-5 h-5" />
+            {spinning ? 'SPINNING...' : 'SPIN'}
+          </span>
         </button>
-        <div style={{ height: '30px', background: 'linear-gradient(180deg, #2a2a3a, #1a1a2e)', borderRadius: '8px', border: '1px solid rgba(255,215,0,0.1)' }} />
+        <div className="hidden" style={{ height: '30px', background: 'linear-gradient(180deg, #2a2a3a, #1a1a2e)', borderRadius: '8px', border: '1px solid rgba(255,215,0,0.1)' }} />
       </div>
-    </div>
 
-    {/* Handle */}
-    <div className="absolute" style={{ right: '-20px', top: '65px', width: '45px', height: '150px', cursor: 'pointer', zIndex: 10 }}
+      {/* Handle */}
+      <div className="absolute" style={{ right: '-20px', top: '65px', width: '45px', height: '150px', cursor: 'pointer', zIndex: 10 }}
       onClick={handleLeverPull}>
       <div className="absolute" style={{
         left: 0, top: '85px', width: '20px', height: '45px',
@@ -104,6 +104,7 @@ const MachineContainer = ({
           borderRadius: '50%',
           boxShadow: '0 3px 10px rgba(255,107,107,0.5), inset 0 -3px 6px rgba(0,0,0,0.3)',
         }} />
+        </div>
       </div>
     </div>
   </div>

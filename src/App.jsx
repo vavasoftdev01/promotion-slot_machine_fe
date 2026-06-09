@@ -189,52 +189,98 @@ export default function App() {
     handleSpin()
   }, [animateLever, handleSpin])
 
-  const bodyWidth = Math.min(cellSize.w * 7 + 80, 520)
+  const bodyWidth = Math.min(cellSize.w * 7 + 80, 676)
   const jackpotLine = winData?.winningLines?.find(l => l.name === 'Jackpot')
   const payableLines = winData?.winningLines?.filter(l => l.multiplier > 0)
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-[#0a0015] via-[#1a0030] to-[#0d0020] font-['Inter',sans-serif] p-4 gap-4">
-      <MachineContainer
-        bodyWidth={bodyWidth}
-        handleSpin={handleSpin}
-        handleLeverPull={handleLeverPull}
-        armWrapRef={armWrapRef}
-        spinning={spinning}
-        miniGameActive={miniGameActive}
-      >
-        <SlotScreen
-          strips={strips}
-          cellSize={cellSize}
-          winningCells={winningCells}
-          spinning={spinning}
-          stripRefs={stripRefs}
-        />
-      </MachineContainer>
+    <div className="min-h-screen grid grid-cols-1 lg:grid-cols-[5fr_4fr] lg:grid-rows-[auto_1fr] gap-4 p-4 bg-gradient-to-br from-[#0a0015] via-[#1a0030] to-[#0d0020] font-['Inter',sans-serif]">
 
-      <div className="w-full max-w-[48rem] space-y-2">
-        {freeSpins > 0 && (
-          <div className="text-[#ffd700] font-bold text-xs sm:text-sm md:text-base px-2 sm:px-3 py-1 sm:py-1.5 bg-[rgba(255,215,0,0.1)] border border-[rgba(255,215,0,0.3)] rounded-lg">
-            {'\u{1F300}'} Free Spins: {freeSpins}
+      {/* Top-Left: Slot Machine - main game board with 7 reels */}
+      <div id="slot-machine" className="flex flex-col gap-4 w-full">
+        <div className="rounded-xl border border-[rgba(255,215,0,0.2)] bg-[rgba(26,26,46,0.6)] backdrop-blur-sm p-4 flex items-center justify-center">
+          <h1 className="text-[#ffd700] text-2xl font-bold uppercase tracking-widest">Slot Machine</h1>
+        </div>
+        <div className="flex flex-col lg:flex-row gap-4 w-full flex-1">
+        <MachineContainer
+          bodyWidth={9999}
+          handleSpin={handleSpin}
+          handleLeverPull={handleLeverPull}
+          armWrapRef={armWrapRef}
+          spinning={spinning}
+          miniGameActive={miniGameActive}
+        >
+          <SlotScreen
+            strips={strips}
+            cellSize={cellSize}
+            winningCells={winningCells}
+            spinning={spinning}
+            stripRefs={stripRefs}
+          />
+        </MachineContainer>
+        <div className="w-full lg:w-1/4 rounded-xl border border-[rgba(255,215,0,0.2)] bg-[rgba(26,26,46,0.6)] backdrop-blur-sm p-4 flex flex-col items-center">
+          <p className="text-[#ffd700] text-sm font-bold uppercase tracking-wider text-center">Bonus Info</p>
+          <div className="mt-auto w-full h-1/4 bg-[rgba(255,215,0,0.1)]"></div>
+        </div>
+        </div>
+      </div>
+
+      {/* Top-Right: Info & Stats Panel */}
+      <div className="flex flex-col items-center justify-center gap-4 p-6 rounded-xl border border-[rgba(255,215,0,0.2)] bg-[rgba(26,26,46,0.6)] backdrop-blur-sm">
+        <h2 className="text-[#ffd700] text-xl font-bold uppercase tracking-wider">Game Mechanics</h2>
+        <div className="space-y-3 text-center">
+          <div className="text-[#e2e8f0] text-sm">
+            <span className="text-[#94a3b8]">Free Spins:</span>{' '}
+            <span className="text-[#ffd700] font-bold">{freeSpins}</span>
           </div>
-        )}
-        <div className="min-h-10 text-[#e2e8f0] font-bold text-sm sm:text-base md:text-lg text-center">
-          {jackpotLine ? (
-            <div className="text-[#ff6b6b] text-lg sm:text-xl md:text-2xl animate-[jackpotPulse_0.5s_ease-in-out_infinite_alternate] [text-shadow:0_0_20px_rgba(255,107,107,0.6)]">
-              {'\u{1F3C6}'} JACKPOT!!! Pot: {jackpotLine.potAmount}
+          <div className="text-[#e2e8f0] text-sm">
+            <span className="text-[#94a3b8]">Status:</span>{' '}
+            <span className="text-[#ffd700] font-bold">{spinning ? 'Spinning...' : 'Ready'}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Bottom-Left: Win Display */}
+      <div className="flex flex-col items-center justify-center p-6 rounded-xl border border-[rgba(255,215,0,0.2)] bg-[rgba(26,26,46,0.6)] backdrop-blur-sm">
+        <div className="w-full max-w-[48rem] space-y-2 text-center">
+          {freeSpins > 0 && (
+            <div className="text-[#ffd700] font-bold text-xs sm:text-sm md:text-base px-2 sm:px-3 py-1 sm:py-1.5 bg-[rgba(255,215,0,0.1)] border border-[rgba(255,215,0,0.3)] rounded-lg inline-block">
+              {'\u{1F300}'} Free Spins: {freeSpins}
             </div>
-          ) : payableLines?.length > 0 ? (
-            <>
-              <div className="text-xs sm:text-sm md:text-base text-[#ffd700]">{'\u{1F3C6}'} WINNER! Total Multiplier: x{winData.totalMultiplier}</div>
-              <div className="flex flex-col gap-0.5 text-[10px] sm:text-xs md:text-sm text-[#cbd5e1] mt-1">
-                {payableLines.map(l => (
-                  <div key={l.name} className="flex items-center justify-center gap-1">{l.name}: {getAsset(l.symbol)} x{l.multiplier}</div>
-                ))}
-              </div>
-            </>
-          ) : winData && !winData.isWinner ? null : (
-            <span>{spinning ? 'Spinning...' : 'Pull the lever!'}</span>
           )}
+          <div className="text-[#e2e8f0] font-bold text-sm sm:text-base md:text-lg">
+            {jackpotLine ? (
+              <div className="text-[#ff6b6b] text-lg sm:text-xl md:text-2xl animate-[jackpotPulse_0.5s_ease-in-out_infinite_alternate] [text-shadow:0_0_20px_rgba(255,107,107,0.6)]">
+                {'\u{1F3C6}'} JACKPOT!!! Pot: {jackpotLine.potAmount}
+              </div>
+            ) : payableLines?.length > 0 ? (
+              <>
+                <div className="text-xs sm:text-sm md:text-base text-[#ffd700]">{'\u{1F3C6}'} WINNER! Total Multiplier: x{winData.totalMultiplier}</div>
+                <div className="flex flex-col gap-0.5 text-[10px] sm:text-xs md:text-sm text-[#cbd5e1] mt-1">
+                  {payableLines.map(l => (
+                    <div key={l.name} className="flex items-center justify-center gap-1">{l.name}: {getAsset(l.symbol)} x{l.multiplier}</div>
+                  ))}
+                </div>
+              </>
+            ) : winData && !winData.isWinner ? null : (
+              <span>{spinning ? 'Spinning...' : 'Event Details'}</span>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Bottom-Right: Jackpot Panel */}
+      <div className="flex flex-col items-center justify-center p-6 rounded-xl border border-[rgba(255,215,0,0.2)] bg-[rgba(26,26,46,0.6)] backdrop-blur-sm">
+        <h2 className="text-[#ffd700] text-xl font-bold uppercase tracking-wider mb-3">Price Information</h2>
+        <div className="text-[#ff6b6b] text-2xl font-bold animate-pulse">
+          $200,000
+        </div>
+        <div className="flex gap-1 mt-3">
+          {['K', 'B', 'C', 'G', 'A', 'M', 'E'].map((letter) => (
+            <span key={letter} className="w-8 h-8 flex items-center justify-center rounded bg-[rgba(255,215,0,0.15)] border border-[rgba(255,215,0,0.3)] text-[#ffd700] font-bold text-sm">
+              {letter}
+            </span>
+          ))}
         </div>
       </div>
 
@@ -287,7 +333,7 @@ function MiniGameModal({ onClose }) {
   if (!segments) {
     return (
       <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-2 sm:p-4">
-        <div className="bg-gradient-to-br from-[#1a1a2e] to-[#2d1b4e] border-3 border-gold-light rounded-2xl p-4 sm:p-6 md:p-8 text-center">
+        <div className="bg-gradient-to-br from-[#1a1a2e] to-[#2d1b4e] border-3 border-gold-light rounded-xl p-4 sm:p-6 md:p-8 text-center">
           <p className="text-gold-light text-base sm:text-lg md:text-xl">Loading...</p>
         </div>
       </div>
@@ -302,7 +348,7 @@ function MiniGameModal({ onClose }) {
 
   return (
     <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 transition-opacity duration-300 p-2 sm:p-4">
-      <div className="bg-gradient-to-br from-[#1a1a2e] to-[#2d1b4e] border-3 border-gold-light rounded-2xl p-4 sm:p-6 md:p-8 text-center max-w-sm sm:max-w-md w-full shadow-[0_0_40px_rgba(255,215,0,0.3)]">
+      <div className="bg-gradient-to-br from-[#1a1a2e] to-[#2d1b4e] border-3 border-gold-light rounded-xl p-4 sm:p-6 md:p-8 text-center max-w-sm sm:max-w-md w-full shadow-[0_0_40px_rgba(255,215,0,0.3)]">
         <h2 className="text-gold-light text-lg sm:text-xl md:text-2xl font-bold mb-3 sm:mb-4">{'\u{2B50}'} Roulette Bonus {'\u{2B50}'}</h2>
         <div className="relative w-[200px] h-[200px] sm:w-[250px] sm:h-[250px] md:w-[300px] md:h-[300px] mx-auto mb-4 sm:mb-5">
           <div className="absolute -top-3 left-1/2 -translate-x-1/2 text-2xl sm:text-3xl text-gold-light z-10 drop-shadow-[0_0_6px_rgba(255,215,0,0.6)]">{'\u{25BC}'}</div>

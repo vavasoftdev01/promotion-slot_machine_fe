@@ -3,6 +3,9 @@ import gsap from 'gsap'
 import useGameStore from './stores/useGameStore'
 import MachineContainer from './components/MachineContainer'
 import SlotScreen from './components/SlotScreen'
+import config from './config.json'
+
+const IMG = { w: '/images/emojiv4/bar.png', d: '/images/emojiv4/diamond.png', s: '/images/emojiv4/star.png', se: '/images/emojiv4/seven.png', b: '/images/emojiv4/bell.png', p: '/images/emojiv4/plum.png', o: '/images/emojiv4/orange.png', g: '/images/emojiv4/grape.png', l: '/images/emojiv4/lemon.png', c: '/images/emojiv4/cherries.png', wm: '/images/emojiv4/watermelon.png' }
 
 const ASSET_MAP = {
   cherry: '🍒', lemon: '🍋', orange: '🍊', plum: '🫐',
@@ -11,13 +14,20 @@ const ASSET_MAP = {
   K: 'K', B: 'B', C: 'C', G: 'G', A: 'A', M: 'M', E: 'E',
 }
 
+const ASSET_IMG = {
+  cherry: IMG.c, lemon: IMG.l, orange: IMG.o, plum: IMG.p,
+  bell: IMG.b, seven: IMG.se, bar: IMG.w, star: IMG.s,
+  grape: IMG.g, watermelon: IMG.wm, diamond: IMG.d,
+}
+
 const JACKPOT_LETTERS = ['K', 'B', 'C', 'G', 'A', 'M', 'E']
 const COLS = 7
 const CYLINDER_N = 14
 const SPIN_DURATION = 2.5
 const STAGGER = 0.12
 
-const COMMON_SYMBOLS = ['cherry','cherry','cherry','cherry','lemon','lemon','orange','seven','star','grape','watermelon','diamond']
+// const COMMON_SYMBOLS = ['cherry','cherry','plum','bar','lemon','lemon','orange','seven','star','grape','watermelon','diamond']
+const COMMON_SYMBOLS = ['bar','bell','cherry','diamond','grape','lemon','orange','plum','seven','star','watermelon']
 
 function buildCylinderSegments(top, mid, bot, reelIndex) {
   const pool = [...COMMON_SYMBOLS, JACKPOT_LETTERS[reelIndex]]
@@ -55,7 +65,10 @@ export default function App() {
   const pendingMiniGame = useRef(false)
   const armWrapRef = useRef(null)
 
-  const getAsset = (symbol) => ASSET_MAP[symbol] ?? symbol
+  const getAsset = (symbol) => {
+    const src = ASSET_IMG[symbol]
+    return src ? <img src={src} alt={symbol} className="inline-block w-5 h-5 align-middle" /> : (ASSET_MAP[symbol] ?? symbol)
+  }
 
   useEffect(() => {
     const onResize = () => {
@@ -199,7 +212,7 @@ export default function App() {
       {/* Top-Left: Slot Machine - main game board with 7 reels */}
       <div id="slot-machine" className="flex flex-col gap-4 w-full">
         <div className="rounded-xl border border-[rgba(255,215,0,0.2)] bg-[rgba(26,26,46,0.6)] backdrop-blur-sm p-4 flex items-center justify-center">
-          <h1 className="text-[#ffd700] text-2xl font-bold uppercase tracking-widest">Slot Machine</h1>
+          <h1 className="text-[#ffd700] text-2xl font-bold uppercase tracking-widest">{config.slot_machine_div.header}</h1>
         </div>
         <div className="flex flex-col lg:flex-row gap-4 w-full flex-1">
         <MachineContainer
@@ -227,7 +240,7 @@ export default function App() {
 
       {/* Top-Right: Info & Stats Panel */}
       <div className="flex flex-col items-center justify-center gap-4 p-6 rounded-xl border border-[rgba(255,215,0,0.2)] bg-[rgba(26,26,46,0.6)] backdrop-blur-sm">
-        <h2 className="text-[#ffd700] text-xl font-bold uppercase tracking-wider">Game Mechanics</h2>
+        <h2 className="text-[#ffd700] text-xl font-bold uppercase tracking-wider">{config.mechanics_div.header}</h2>
         <div className="space-y-3 text-center">
           <div className="text-[#e2e8f0] text-sm">
             <span className="text-[#94a3b8]">Free Spins:</span>{' '}
@@ -242,6 +255,7 @@ export default function App() {
 
       {/* Bottom-Left: Win Display */}
       <div className="flex flex-col items-center justify-center p-6 rounded-xl border border-[rgba(255,215,0,0.2)] bg-[rgba(26,26,46,0.6)] backdrop-blur-sm">
+        <h2 className="text-[#ffd700] text-xl font-bold uppercase tracking-wider">{config.events_div.header}</h2>      
         <div className="w-full max-w-[48rem] space-y-2 text-center">
           {freeSpins > 0 && (
             <div className="text-[#ffd700] font-bold text-xs sm:text-sm md:text-base px-2 sm:px-3 py-1 sm:py-1.5 bg-[rgba(255,215,0,0.1)] border border-[rgba(255,215,0,0.3)] rounded-lg inline-block">
@@ -263,7 +277,7 @@ export default function App() {
                 </div>
               </>
             ) : winData && !winData.isWinner ? null : (
-              <span>{spinning ? 'Spinning...' : 'Event Details'}</span>
+              <span>{spinning ? 'Spinning...' : ''}</span>
             )}
           </div>
         </div>
@@ -271,7 +285,7 @@ export default function App() {
 
       {/* Bottom-Right: Jackpot Panel */}
       <div className="flex flex-col items-center justify-center p-6 rounded-xl border border-[rgba(255,215,0,0.2)] bg-[rgba(26,26,46,0.6)] backdrop-blur-sm">
-        <h2 className="text-[#ffd700] text-xl font-bold uppercase tracking-wider mb-3">Price Information</h2>
+        <h2 className="text-[#ffd700] text-xl font-bold uppercase tracking-wider mb-3">{config.price_info_div.header}</h2>
         <div className="text-[#ff6b6b] text-2xl font-bold animate-pulse">
           $200,000
         </div>

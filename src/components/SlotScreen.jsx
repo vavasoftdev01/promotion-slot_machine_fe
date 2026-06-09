@@ -4,13 +4,23 @@ const JACKPOT_LETTERS = ['K', 'B', 'C', 'G', 'A', 'M', 'E']
 const CYLINDER_N = 14
 const ROWS = 3
 
+import { createElement } from 'react'
+
+const IMG = { w: '/images/emojiv4/bar.png', d: '/images/emojiv4/diamond.png', s: '/images/emojiv4/star.png', se: '/images/emojiv4/seven.png', b: '/images/emojiv4/bell.png', p: '/images/emojiv4/plum.png', o: '/images/emojiv4/orange.png', g: '/images/emojiv4/grape.png', l: '/images/emojiv4/lemon.png', c: '/images/emojiv4/cherries.png', wm: '/images/emojiv4/watermelon.png' }
+
+const ASSET_IMG = {
+  cherry: IMG.c, lemon: IMG.l, orange: IMG.o, plum: IMG.p,
+  bell: IMG.b, seven: IMG.se, bar: IMG.w, star: IMG.s,
+  grape: IMG.g, watermelon: IMG.wm, diamond: IMG.d,
+}
+
+const ASSET_MAP = {
+  K: 'K', B: 'B', C: 'C', G: 'G', A: 'A', M: 'M', E: 'E',
+}
+
 function getAsset(symbol) {
-  const ASSET_MAP = {
-    cherry: '🍒', lemon: '🍋', orange: '🍊', plum: '🫐',
-    bell: '🔔', seven: '7️⃣', bar: '🥃', star: '⭐',
-    grape: '🍇', watermelon: '🍉', diamond: '💎',
-    K: 'K', B: 'B', C: 'C', G: 'G', A: 'A', M: 'M', E: 'E',
-  }
+  const src = ASSET_IMG[symbol]
+  if (src) return createElement('img', { src, alt: symbol, style: { width: 38, height: 38, objectFit: 'contain' } })
   return ASSET_MAP[symbol] ?? symbol
 }
 

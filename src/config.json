@@ -1,0 +1,14 @@
+{
+  "slot_machine_div": {
+    "header": "Amazing Slot Machine"
+  },
+  "events_div": {
+    "header": "Recent Events"
+  },
+  "mechanics_div": {
+    "header": "Game Mechanics"
+  },
+  "price_info_div": {
+    "header": "Price Information"
+  }
+}

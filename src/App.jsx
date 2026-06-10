@@ -42,6 +42,7 @@ function buildCylinderSegments(top, mid, bot, reelIndex) {
 }
 
 export default function App() {
+  const API = import.meta.env.VITE_API_URL || ''
   const spinning = useGameStore((s) => s.spinning)
   const winData = useGameStore((s) => s.winData)
   const freeSpins = useGameStore((s) => s.freeSpins)
@@ -58,6 +59,9 @@ export default function App() {
   const setCellSize = useGameStore((s) => s.setCellSize)
   const setStrips = useGameStore((s) => s.setStrips)
   const incrementSpinKey = useGameStore((s) => s.incrementSpinKey)
+
+  const tokenRef = useRef(new URLSearchParams(window.location.search).get('token') || '')
+  const authHeaders = () => tokenRef.current ? { Authorization: `Bearer ${tokenRef.current}` } : {}
 
   const spinLock = useRef(false)
   const stripRefs = useRef([])
@@ -95,7 +99,7 @@ export default function App() {
     setWinningCells(new Set())
 
     try {
-      const res = await fetch('/api/spin')
+      const res = await fetch(`${API}/promotion-ace/v1/spin`, { headers: authHeaders() })
       const data = await res.json()
 
       const newSegments = Array.from({ length: COLS }, (_, c) =>
@@ -323,7 +327,9 @@ function MiniGameModal({ onClose }) {
   const [result, setResult] = useState(null)
 
   useEffect(() => {
-    fetch('/api/minigame')
+    const token = new URLSearchParams(window.location.search).get('token') || ''
+    const headers = token ? { Authorization: `Bearer ${token}` } : {}
+    fetch(`${import.meta.env.VITE_API_URL || ''}/promotion-ace/v1/minigame`, { headers })
       .then(r => r.json())
       .then(data => setSegments(data))
   }, [])

@@ -7,7 +7,7 @@ export default defineConfig({
   server: {
     port: 6993,
     proxy: {
-      '/api': 'http://localhost:3001',
+      '/promotion-ace': 'http://localhost:3001',
     },
   },
 })

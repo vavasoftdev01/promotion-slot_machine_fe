@@ -58,10 +58,14 @@ export default function App() {
   const setWinningCells = useGameStore((s) => s.setWinningCells)
   const setCellSize = useGameStore((s) => s.setCellSize)
   const setStrips = useGameStore((s) => s.setStrips)
+  const setUser = useGameStore((s) => s.setUser)
   const incrementSpinKey = useGameStore((s) => s.incrementSpinKey)
 
   const tokenRef = useRef(new URLSearchParams(window.location.search).get('token') || '')
   const authHeaders = () => tokenRef.current ? { Authorization: `Bearer ${tokenRef.current}` } : {}
+
+  const [authState, setAuthState] = useState(null)
+  const [ongoingEvent, setOngoingEvent] = useState(null)
 
   const spinLock = useRef(false)
   const stripRefs = useRef([])
@@ -87,6 +91,37 @@ export default function App() {
     window.addEventListener('resize', onResize)
     return () => window.removeEventListener('resize', onResize)
   }, [setCellSize])
+
+  const authFetched = useRef(false)
+  useEffect(() => {
+    if (authFetched.current) return
+    authFetched.current = true
+    async function init() {
+      try {
+        const res = await fetch(`${API}/promotion-ace/v1/checkAuth`, { headers: authHeaders() })
+        const data = await res.json()
+        if (!res.ok || data.success === false) {
+          setAuthState({ success: false, error: data.message || 'Unauthorized' })
+          return
+        }
+        setAuthState({ success: true, user: data })
+        setUser(data)
+      } catch {
+        setAuthState({ success: false, error: 'Unable to connect to server' })
+      }
+    }
+    init()
+  }, [API])
+
+  useEffect(() => {
+    if (!authState?.success) return
+    fetch(`${API}/promotion-ace/v1/ongoing-event`, { headers: authHeaders() })
+      .then(r => r.json())
+      .then(data => {
+        if (data.success && data.event) setOngoingEvent(data.event)
+      })
+      .catch(() => {})
+  }, [authState, API])
 
   const handleSpin = useCallback(async () => {
     if (spinLock.current) return
@@ -206,9 +241,25 @@ export default function App() {
     handleSpin()
   }, [animateLever, handleSpin])
 
-  const bodyWidth = Math.min(cellSize.w * 7 + 80, 676)
   const jackpotLine = winData?.winningLines?.find(l => l.name === 'Jackpot')
   const payableLines = winData?.winningLines?.filter(l => l.multiplier > 0)
+
+  if (!authState) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#0a0015] via-[#1a0030] to-[#0d0020] font-['Inter',sans-serif]">
+        <div className="text-[#ffd700] text-xl font-bold animate-pulse">Authenticating...</div>
+      </div>
+    )
+  }
+
+  if (!authState.success) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center gap-4 bg-gradient-to-br from-[#0a0015] via-[#1a0030] to-[#0d0020] font-['Inter',sans-serif]">
+        <div className="text-[#ff6b6b] text-2xl font-bold">Access Denied</div>
+        <div className="text-[#e2e8f0] text-sm">{authState.error || 'Invalid or missing token'}</div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen grid grid-cols-1 lg:grid-cols-[5fr_4fr] lg:grid-rows-[auto_1fr] gap-4 p-4 bg-gradient-to-br from-[#0a0015] via-[#1a0030] to-[#0d0020] font-['Inter',sans-serif]">
@@ -257,44 +308,65 @@ export default function App() {
         </div>
       </div>
 
-      {/* Bottom-Left: Win Display */}
+      {/* Bottom-Left: On Going Event */}
       <div className="flex flex-col items-center justify-center p-6 rounded-xl border border-[rgba(255,215,0,0.2)] bg-[rgba(26,26,46,0.6)] backdrop-blur-sm">
-        <h2 className="text-[#ffd700] text-xl font-bold uppercase tracking-wider">{config.events_div.header}</h2>      
-        <div className="w-full max-w-[48rem] space-y-2 text-center">
-          {freeSpins > 0 && (
-            <div className="text-[#ffd700] font-bold text-xs sm:text-sm md:text-base px-2 sm:px-3 py-1 sm:py-1.5 bg-[rgba(255,215,0,0.1)] border border-[rgba(255,215,0,0.3)] rounded-lg inline-block">
-              {'\u{1F300}'} Free Spins: {freeSpins}
-            </div>
-          )}
-          <div className="text-[#e2e8f0] font-bold text-sm sm:text-base md:text-lg">
-            {jackpotLine ? (
-              <div className="text-[#ff6b6b] text-lg sm:text-xl md:text-2xl animate-[jackpotPulse_0.5s_ease-in-out_infinite_alternate] [text-shadow:0_0_20px_rgba(255,107,107,0.6)]">
-                {'\u{1F3C6}'} JACKPOT!!! Pot: {jackpotLine.potAmount}
-              </div>
-            ) : payableLines?.length > 0 ? (
-              <>
-                <div className="text-xs sm:text-sm md:text-base text-[#ffd700]">{'\u{1F3C6}'} WINNER! Total Multiplier: x{winData.totalMultiplier}</div>
-                <div className="flex flex-col gap-0.5 text-[10px] sm:text-xs md:text-sm text-[#cbd5e1] mt-1">
-                  {payableLines.map(l => (
-                    <div key={l.name} className="flex items-center justify-center gap-1">{l.name}: {getAsset(l.symbol)} x{l.multiplier}</div>
+        <h2 className="text-[#ffd700] text-xl font-bold uppercase tracking-wider mb-3">{config.events_div.header}</h2>
+        {ongoingEvent ? (
+          <div className="w-full max-w-[48rem] space-y-3 text-center text-xs sm:text-sm">
+            <div className="text-[#ffd700] font-bold text-sm sm:text-base">{ongoingEvent.eventName}</div>
+            {ongoingEvent.eventDescription?.event_mechanics?.length > 0 && (
+              <div>
+                <div className="text-[#ffd700] font-semibold mb-1">Event Mechanics</div>
+                <ul className="space-y-0.5">
+                  {ongoingEvent.eventDescription.event_mechanics.map((m, i) => (
+                    <li key={i} className="text-[#e2e8f0]">{'\u2022'} {m.value}</li>
                   ))}
-                </div>
-              </>
-            ) : winData && !winData.isWinner ? null : (
-              <span>{spinning ? 'Spinning...' : ''}</span>
+                </ul>
+              </div>
+            )}
+            {ongoingEvent.eventDescription?.winning_conditions?.length > 0 && (
+              <div>
+                <div className="text-[#ffd700] font-semibold mb-1">Winning Conditions</div>
+                <ul className="space-y-0.5">
+                  {ongoingEvent.eventDescription.winning_conditions.map((c, i) => (
+                    <li key={i} className="text-[#e2e8f0]">{'\u2022'} {c.value}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {ongoingEvent.eventDescription?.participation_mechanics?.length > 0 && (
+              <div>
+                <div className="text-[#ffd700] font-semibold mb-1">Participation</div>
+                <ul className="space-y-0.5">
+                  {ongoingEvent.eventDescription.participation_mechanics.map((m, i) => (
+                    <li key={i} className="text-[#e2e8f0]">{'\u2022'} {m.value}</li>
+                  ))}
+                </ul>
+              </div>
             )}
           </div>
-        </div>
+        ) : (
+          <div className="text-[#94a3b8] text-sm">No ongoing event</div>
+        )}
       </div>
 
-      {/* Bottom-Right: Jackpot Panel */}
+      {/* Bottom-Right: Price Information */}
       <div className="flex flex-col items-center justify-center p-6 rounded-xl border border-[rgba(255,215,0,0.2)] bg-[rgba(26,26,46,0.6)] backdrop-blur-sm">
         <h2 className="text-[#ffd700] text-xl font-bold uppercase tracking-wider mb-3">{config.price_info_div.header}</h2>
-        <div className="text-[#ff6b6b] text-2xl font-bold animate-pulse">
-          $200,000
-        </div>
+        {ongoingEvent?.prizeDetails ? (
+          <div className="w-full space-y-2 text-center">
+            {Object.entries(ongoingEvent.prizeDetails).map(([key, prize]) => (
+              <div key={key} className="text-[#e2e8f0] text-xs sm:text-sm">
+                <span className="text-[#ffd700] font-semibold capitalize">{key.replace('_', ' ')}:</span>{' '}
+                {prize.label} — {prize.reward.toLocaleString()} {prize.currency.toUpperCase()} ({prize.winner_count} winner{prize.winner_count > 1 ? 's' : ''})
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-[#94a3b8] text-sm">TBD</div>
+        )}
         <div className="flex gap-1 mt-3">
-          {['K', 'B', 'C', 'G', 'A', 'M', 'E'].map((letter) => (
+          {(ongoingEvent?.jackpotCombinations || ['K', 'B', 'C', 'G', 'A', 'M', 'E']).map((letter) => (
             <span key={letter} className="w-8 h-8 flex items-center justify-center rounded bg-[rgba(255,215,0,0.15)] border border-[rgba(255,215,0,0.3)] text-[#ffd700] font-bold text-sm">
               {letter}
             </span>

@@ -33,6 +33,7 @@ const useGameStore = create((set) => ({
   winningCells: new Set(),
   cellSize: getCellSize(),
   spinKey: 0,
+  user: null,
   strips: Array.from({ length: COLS }, (_, c) =>
     buildCylinderSegments(
       COMMON_SYMBOLS[Math.floor(Math.random() * COMMON_SYMBOLS.length)],
@@ -49,6 +50,7 @@ const useGameStore = create((set) => ({
   setWinningCells: (cells) => set({ winningCells: cells }),
   setCellSize: (size) => set({ cellSize: size }),
   setStrips: (strips) => set({ strips }),
+  setUser: (user) => set({ user }),
   incrementSpinKey: () => set((s) => ({ spinKey: s.spinKey + 1 })),
   resetSpinState: () => set({
     spinning: false,

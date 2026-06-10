@@ -1,16 +1,19 @@
-# React + Vite
+## Running with Docker
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+### Build
 
-Currently, two official plugins are available:
+```sh
+docker build -t promotion-slot-machine-fe .
+```
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+### Run
 
-## React Compiler
+```sh
+docker run -p 80:80 promotion-slot-machine-fe
+```
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+The nginx server will serve the app on port 80 and proxy `/promotion-ace/*` requests to the backend container at `http://backend:3001`. If the backend runs on a different host, pass the `VITE_API_URL` build arg:
 
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+```sh
+docker build -t promotion-slot-machine-fe --build-arg VITE_API_URL=http://your-backend-host:3001 .
+```
